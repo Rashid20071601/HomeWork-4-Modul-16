@@ -1,66 +1,53 @@
 # Импорт библиотек
-from fastapi import FastAPI, Path, status, Body, HTTPException
+from fastapi import FastAPI, Path, HTTPException
 from typing import Annotated, List
 from pydantic import BaseModel
 
-
-# Инициализация приложения
+# Создаем экземпляр приложения FastAPI
 app = FastAPI()
-# База данных сообщений
-messages_db = []
+users = []  # Храним пользователей в виде списка
 
 
 
-class Message(BaseModel):
-    id: int = None
-    text: str
+class User(BaseModel):
+    id: int
+    username: str
+    age: int
 
 
-# Получение всех сообщений
-@app.get('/')
-async def get_all_messages() -> List[Message]:
-    return messages_db
+@app.get('/users')
+async def get_users() -> List[User]:
+    # Возвращаем список всех пользователей
+    return users
 
 
-# Получение сообщения по ID
-@app.get('/message/{message_id}')
-async def get_message(message_id: int) -> Message:
-    try:
-        return messages_db[message_id]
-    except IndexError:
-        raise HTTPException(status_code=404, detail='Message not found!')
+@app.post('/user/{username}/{age}')
+async def registered_user(username: str, age: int) -> User:
+    # Регистрируем нового пользователя с уникальным ID
+    new_id = users[-1].id + 1 if users else 1
+    new_user = User(id=new_id, username=username, age=age)
+    users.append(new_user)
+    return new_user
 
 
-# Создание нового сообщения
-@app.post('/message')
-async def create_message(message: Message) -> str:
-    message.id = len(messages_db)
-    messages_db.append(message)
-    return 'Message is created!'
+@app.put('/user/{user_id}/{username}/{age}')
+async def update_user(user_id: int, username: str, age: int) -> User:
+    # Обновляем данные существующего пользователя
+    for user in users:
+        if user.id == user_id:
+            user.username = username
+            user.age = age
+            return user
+        
+    raise HTTPException(status_code=404, detail='User was not found')
 
 
-# Обновление сообщения
-@app.put('/message/{message_id}')
-async def update_message(message_id: int, message: str = Body()) -> str:
-    try:
-        edit_message = messages_db[message_id]
-        edit_message.text = message
-        return 'Message is updated!'
-    except IndexError:
-        raise HTTPException(status_code=404, detail='Message not found!')
-
-# Удаление сообщения по ID
-@app.delete('/message/{message_id}')
-async def kill_message(message_id: int) -> str:
-    try:
-        messages_db.pop(message_id)
-        return f'Message with ID {message_id} is deleted!'
-    except IndexError:
-        raise HTTPException(status_code=404, detail='Message not found!')
-
-
-# Удаление всех сообщений
-@app.delete('/')
-async def kill_all_messages() -> str:
-    messages_db.clear()
-    return 'All messages is deleted!'
+@app.delete('/user/{user_id}')
+async def deleted_user(user_id: int) -> User:
+    # Удаляем пользователя по его ID
+    for user in users:
+        if user.id == user_id:
+            users.remove(user)
+            return user
+        
+    raise HTTPException(status_code=404, detail='User was not found')
